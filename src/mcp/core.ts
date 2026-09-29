@@ -34,6 +34,7 @@ import {
   createPickerSession,
   getPickerSession,
   listPickerSessionMediaItems,
+  getPickerImage,
 } from "../api/photos.js";
 import { searchPhotos } from "../api/repositories/photosRepository.js";
 import type { SearchFilter } from "../api/types.js";
@@ -55,6 +56,7 @@ import {
   createAlbumWithMediaSchema,
   contentCategoryEnum,
   pollPickerSessionSchema,
+  getPickerImageSchema,
 } from "../schemas/toolSchemas.js";
 import { quotaManager } from "../utils/quotaManager.js";
 
@@ -661,6 +663,25 @@ export class GooglePhotosMCPCore {
           },
         },
         {
+          name: "get_picker_image",
+          description:
+            "Return image content for a media item selected in a completed Google Photos Picker session. Use the sessionId and photo id returned by poll_picker_session.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sessionId: {
+                type: "string",
+                description: "The completed Picker session ID",
+              },
+              mediaItemId: {
+                type: "string",
+                description: "The selected photo id from poll_picker_session",
+              },
+            },
+            required: ["sessionId", "mediaItemId"],
+          },
+        },
+        {
           name: "start_auth",
           description:
             "Start Google OAuth authentication flow. Spins up a temporary local server, returns a URL to visit in your browser. After you authenticate, tokens are saved automatically and the temp server shuts down.",
@@ -758,6 +779,9 @@ export class GooglePhotosMCPCore {
 
         case "poll_picker_session":
           return await this.handlePollPickerSession(request, tokens);
+
+        case "get_picker_image":
+          return await this.handleGetPickerImage(request, tokens);
 
         default:
           throw new McpError(
@@ -1878,6 +1902,32 @@ Key rules:
             null,
             2,
           ),
+        },
+      ],
+    };
+  }
+
+  /** Returns a selected Picker photo as a native MCP image content block. */
+  private async handleGetPickerImage(
+    request: CallToolRequest,
+    tokens: TokenData,
+  ) {
+    const args = validateArgs(request.params.arguments, getPickerImageSchema);
+    quotaManager.checkQuota(true);
+    const oauth2Client = await this.getAuthenticatedClient(tokens);
+    const image = await getPickerImage(
+      oauth2Client,
+      args.sessionId,
+      args.mediaItemId,
+    );
+    quotaManager.recordRequest(true);
+
+    return {
+      content: [
+        {
+          type: "image" as const,
+          data: image.data,
+          mimeType: image.mimeType,
         },
       ],
     };

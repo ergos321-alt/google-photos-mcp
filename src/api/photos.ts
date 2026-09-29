@@ -49,6 +49,7 @@ export {
   createPickerSession,
   getPickerSession,
   listPickerSessionMediaItems,
+  getPickerImage,
 } from "./repositories/photosRepository.js";
 
 // Service exports (High-level)

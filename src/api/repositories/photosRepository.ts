@@ -3,6 +3,7 @@ import axios from "axios";
 import { readFile } from "fs/promises";
 import { PhotoItem, SearchParams, NewMediaItemResult } from "../types.js";
 import { getPhotoClient, getPickerClient, toError } from "../client.js";
+import { getAuthorizedHeaders } from "../oauth.js";
 import { enrichPhotosWithLocation } from "../enrichment/locationEnricher.js";
 import { getPhotoLocation } from "../../utils/location.js";
 import { withRetry } from "../../utils/retry.js";
@@ -356,4 +357,60 @@ export async function listPickerSessionMediaItems(
   })) as PhotoItem[];
 
   return { photos, nextPageToken: response.data.nextPageToken };
+}
+
+/**
+ * Downloads one image that the user selected in a Picker session. Picker IDs
+ * and base URLs stay within the Picker API; they are not Library API media IDs.
+ */
+export async function getPickerImage(
+  oauth2Client: OAuth2Client,
+  sessionId: string,
+  mediaItemId: string,
+): Promise<{ data: string; mimeType: string }> {
+  let pageToken: string | undefined;
+  let selectedPhoto: PhotoItem | undefined;
+
+  do {
+    const page = await listPickerSessionMediaItems(
+      oauth2Client,
+      sessionId,
+      100,
+      pageToken,
+    );
+    selectedPhoto = page.photos.find((photo) => photo.id === mediaItemId);
+    pageToken = page.nextPageToken;
+  } while (!selectedPhoto && pageToken);
+
+  if (!selectedPhoto?.baseUrl) {
+    throw new Error("Media item not found in Picker session");
+  }
+  if (!selectedPhoto.mimeType?.startsWith("image/")) {
+    throw new Error("Selected Picker media item is not an image");
+  }
+
+  const baseUrl = new URL(selectedPhoto.baseUrl);
+  const host = baseUrl.hostname.toLowerCase();
+  if (
+    baseUrl.protocol !== "https:" ||
+    !(host === "googleusercontent.com" || host.endsWith(".googleusercontent.com"))
+  ) {
+    throw new Error("Unexpected Picker media URL host");
+  }
+
+  const headers = await getAuthorizedHeaders(oauth2Client);
+  const response = await axios.get<ArrayBuffer>(`${selectedPhoto.baseUrl}=d`, {
+    responseType: "arraybuffer",
+    headers,
+    maxRedirects: 0,
+  });
+  const mimeType = String(response.headers["content-type"] ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (!mimeType.startsWith("image/")) {
+    throw new Error("Picker media response is not an image");
+  }
+
+  return { data: Buffer.from(response.data).toString("base64"), mimeType };
 }

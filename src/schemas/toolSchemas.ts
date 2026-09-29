@@ -220,3 +220,11 @@ export const pollPickerSessionSchema = z.object({
   pageSize: z.number().int().min(1).max(100).optional(),
   pageToken: z.string().optional(),
 });
+
+/**
+ * Schema for retrieving an image selected in a completed Picker session.
+ */
+export const getPickerImageSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+  mediaItemId: z.string().min(1, "Picker media item ID is required"),
+});
