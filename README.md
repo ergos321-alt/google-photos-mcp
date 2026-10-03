@@ -1,5 +1,7 @@
 # Google Photos MCP Server
 
+> **Archived / decommissioned for Xiaxia.** Xiaxia no longer deploys or uses this integration. This repository is retained as historical source; it is not a supported or active Xiaxia service.
+
 A Model Context Protocol (MCP) server for Google Photos integration, enabling Claude, Gemini, and other AI assistants to **read, write, and pick** photos from your Google Photos library.
 
 ## ✅ Picker API Support (March 2025+)

@@ -1,0 +1,3 @@
+# Synthetic RS256 JWT fixtures in security tests; payload contains only a test subject.
+dd0ae2fdc8fff6ed75648cd3232f7372f45d0047:test/security/security.test.ts:jwt:290
+c76e627b120a1166989f0793dc270d09f9c4c104:test/security/security.test.ts:jwt:242
